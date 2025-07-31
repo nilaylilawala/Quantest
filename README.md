@@ -1,5 +1,7 @@
 # Quantest
+Quantest is an AI-powered test generation platform designed to assist educators and learners by automating the creation of customized quizzes and exams. Built with modern web technologies, it leverages generative AI to generate questions on any topic or difficulty level, ensuring personalized assessment experiences. The platform supports features like quiz creation, result tracking, performance reports, and weak area analysis, making it a comprehensive tool for academic evaluation and continuous learning.
 
+## Project Info
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.1.3.
 
 ## Development server
