@@ -1,0 +1,14 @@
+<!-- Top MenuBar -->
+<p-menubar [model]="topMenuItems" class="border-b">
+  <ng-template pTemplate="start">
+    <i class="pi pi-home text-xl"></i>
+  </ng-template>
+</p-menubar>
+
+<!-- Side Menu -->
+<div class="flex">
+  <p-menu [model]="sideNavigationItems" class="flex"></p-menu>
+  <div class="flex-grow">
+    <router-outlet />
+  </div>
+</div>

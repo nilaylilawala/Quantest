@@ -1,0 +1,28 @@
+@import "primeicons/primeicons.css";
+// @import "primeflex/primeflex.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    h1 {
+        @apply text-2xl;
+    }
+
+    h2 {
+        @apply text-xl;
+    }
+}
+
+body {
+    font-family: 'DM Sans', sans-serif;
+    // font-size: 14px;
+}
+
+.p-step-header {
+    display: inline-block !important;
+}
+
+.p-step-number {
+    display: inline-flex !important;
+}

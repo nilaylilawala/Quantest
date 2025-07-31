@@ -1,0 +1,55 @@
+.create-test-container {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.step-content {
+    min-height: 400px;
+}
+
+.field {
+    margin-bottom: 0.5rem;
+}
+
+.correct-option {
+    background-color: #e8f5e9;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.questions-summary {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.option-item {
+    padding: 0.5rem;
+    border-radius: 4px;
+    background-color: #f5f5f5;
+}
+
+.option-item.correct-option {
+    background-color: #e8f5e9;
+}
+
+::ng-deep .p-card-content {
+    padding-top: 0;
+}
+
+::ng-deep .p-panel-header {
+    background-color: #f8f9fa;
+}
+
+::ng-deep .p-steps .p-steps-item.p-highlight .p-steps-number {
+    background-color: #3b82f6;
+    color: white;
+}
+
+::ng-deep .p-button-loading-icon {
+    margin-right: 0.5rem;
+}
+
+.white-space-pre-wrap {
+    white-space: pre-wrap;
+}

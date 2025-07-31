@@ -1,0 +1,332 @@
+<p-toast></p-toast>
+<form [formGroup]="testDetailsForm">
+    <p-card>
+
+        <ng-template pTemplate="header">
+            <div class="flex items-center justify-between p-3">
+                <!-- <p-button [label]="activeStep === 0 ? 'Cancel' : 'Back'" icon="pi pi-arrow-left" severity="secondary"
+                    [outlined]="true" (onClick)="activateCallback(2)"></p-button>
+                <p-button [label]="activeStep === 2 ? 'Generate Test' : 'Next'" icon="pi pi-arrow-right"
+                    iconPos="right" (onClick)="handleNext()" [disabled]="!isStepValid()"></p-button> -->
+            </div>
+        </ng-template>
+        <p-stepper [(value)]="activeStep" [linear]="true">
+            <p-step-list>
+                @for (step of steps; track $index) {
+                <p-step [value]="$index+1">
+                    {{step.label}}
+                </p-step>
+                }
+            </p-step-list>
+            <p-step-panels>
+                <p-step-panel [value]="1">
+                    <ng-template #content let-activateCallback="activateCallback">
+                        <div class="flex pt-5 justify-end">
+                            <p-button (onClick)="testDetailsForm.valid && activateCallback(2)" label="Next"
+                                icon="pi pi-arrow-right" iconPos="right" [disabled]="testDetailsForm.invalid" />
+                        </div>
+                        <div class="pt-5">
+                            <div class="card grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="field">
+                                    <label for="title" class="block mb-2 font-semibold">Test Title *</label>
+                                    <input pInputText id="title" class="w-full" formControlName="title"
+                                        placeholder="e.g. Mathematics Final Exam" />
+                                    <!-- @if (username.invalid && (username.touched || exampleForm.submitted)) {
+                                            <p-message severity="error" size="small" variant="simple">Username is required.</p-message>
+                                    } -->
+                                </div>
+                                <div class="field">
+                                    <label for="subject" class="block mb-2 font-semibold">Subject *</label>
+                                    <p-select id="subject" class="w-full" formControlName="subject" [options]="subjects"
+                                        placeholder="Select a Subject"></p-select>
+                                </div>
+
+                                <div class="field">
+                                    <label for="noOfQuestions" class="block mb-2 font-semibold">No. of Questions
+                                        *</label>
+                                    <p-inputgroup>
+                                        <p-floatlabel variant="on">
+                                            <p-input-number [showButtons]="true" [min]="0" [max]="100" [step]="1"
+                                                id="easy" formControlName="easyQuestions" />
+                                            <label for="easy">Easy</label>
+                                        </p-floatlabel>
+                                        <p-float-label variant="on">
+                                            <p-input-number [showButtons]="true" [min]="0" [max]="100" [step]="1"
+                                                id="medium" formControlName="mediumQuestions" />
+                                            <label for="medium">Medium</label>
+                                        </p-float-label>
+                                        <p-float-label variant="on">
+                                            <p-input-number [showButtons]="true" [min]="0" [max]="100" [step]="1"
+                                                id="hard" formControlName="hardQuestions" />
+                                            <label for="hard">Hard</label>
+                                        </p-float-label>
+                                    </p-inputgroup>
+                                    <small id="noOfQuestions-help">Total No. of Questions: {{
+                                        testDetailsForm.get('noOfQuestions')?.value }}</small>
+                                </div>
+                                <div class="field">
+                                    <label for="grade" class="block mb-2 font-semibold">Grade/Class</label>
+                                    <input pInputText id="grade" class="w-full" formControlName="grade"
+                                        placeholder="e.g. Grade 10" />
+                                </div>
+
+                                <!-- 
+                            <div class="col-12 md:col-3">
+                                <label for="duration" class="block mb-2 font-semibold">Duration (minutes)</label>
+                                <p-inputNumber id="duration" [(ngModel)]="testDetails.duration" [min]="0" suffix=" min" class="w-full"
+                                    placeholder="Optional"></p-inputNumber>
+                            </div> -->
+                            </div>
+                            <div class="field">
+                                <label for="instructions" class="block mb-2 font-semibold">Instructions</label>
+                                <textarea pInputTextarea id="instructions" formControlName="instructions" rows="3"
+                                    class="w-full" placeholder="Enter test instructions for students"></textarea>
+                            </div>
+                        </div>
+                    </ng-template>
+                </p-step-panel>
+                <p-step-panel [value]="2">
+                    <ng-template #content let-activateCallback="activateCallback">
+                        <div class="flex pt-5 justify-between">
+                            <p-button (onClick)="activateCallback(1)" label="Back" severity="secondary"
+                                icon="pi pi-arrow-left" />
+                            <p-button (onClick)="activateCallback(3)" label="Next" icon="pi pi-arrow-right"
+                                iconPos="right" />
+                        </div>
+                        <div class="pt-5">
+                            <div class="card flex justify-between items-center mb-4">
+                                <h3 class="m-0">Total Questions: {{ questionsFormArray.length }}</h3>
+                                <div class="flex gap-2">
+                                    <p-button label="Generate with AI" icon="pi pi-sparkles"
+                                        (onClick)="generateQuestionsWithAI()" [loading]="aiGenerating" severity="help"
+                                        [raised]="true"></p-button>
+                                    <p-button label="Add Question" icon="pi pi-plus" (onClick)="addNewQuestion()"
+                                        variant="outlined"></p-button>
+                                </div>
+                            </div>
+
+                            <div *ngIf="questionsFormArray.length === 0" class="text-center py-5">
+                                <i class="pi pi-inbox text-4xl text-300"></i>
+                                <p class="text-lg text-600 mt-3">No questions added yet</p>
+                                <p class="text-sm text-500">
+                                    Click "Generate with AI" or "Add Question" to get started
+                                </p>
+                            </div>
+
+                            <div class="questions-list" formArrayName="questions">
+                                @for (question of questionsFormArray.controls; track $index; let qIndex = $index;) {
+                                <div [formGroupName]="qIndex">
+                                    <ng-template pTemplate="header">
+                                        <div class="flex justify-between items-center w-full">
+                                            <div class="flex gap-2 items-center">
+                                                <span class="font-semibold">Question {{ qIndex + 1 }}</span>
+                                                <p-tag [value]="question.get('marks')?.value + ' marks'"
+                                                    severity="info"></p-tag>
+                                            </div>
+                                            <div class="flex justify-end gap-2">
+                                                <p-button label="Edit" icon="pi pi-pencil" [outlined]="true"
+                                                    size="small" (onClick)="editQuestion(qIndex)"></p-button>
+                                                <p-button label="Delete" icon="pi pi-trash" [outlined]="true"
+                                                    severity="danger" size="small"
+                                                    (onClick)="deleteQuestion(qIndex)"></p-button>
+                                            </div>
+                                            <!-- <p-speeddial [model]="actionItems" direction="left"/> -->
+                                        </div>
+                                    </ng-template>
+
+                                    <div class="question-content">
+                                        <p class="mb-3">{{ question.get('questionText')?.value || "No question text" }}
+                                        </p>
+
+                                        <div class="options-grid" formArrayName="options">
+                                            @for (option of getOptionsFormArray(qIndex).controls; track $index) {
+                                            <div class="option-item flex align-items-center gap-2 mb-2"
+                                                [class.correct-option]="option.get('isCorrect')?.value">
+                                                <i class="pi" [class.pi-check-circle]="option.get('isCorrect')?.value"
+                                                    [class.pi-circle]="!option.get('isCorrect')?.value"
+                                                    [class.text-green-500]="option.get('isCorrect')?.value"></i>
+                                                <span>{{ String.fromCharCode(65 + $index) }}.
+                                                    {{ option.get('optionText')?.value || "Empty option" }}</span>
+                                            </div>
+
+                                            <div *ngIf="question.get('explanation')?.value"
+                                                class="mt-3 p-3 bg-blue-50 border-round">
+                                                <strong>Explanation:</strong> {{ question.get('explanation')?.value }}
+                                            </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                                }
+                                <!-- <p-panel *ngFor="let question of questions; let i = index" class="mb-3"> -->
+
+
+                                <!-- <ng-template pTemplate="footer">
+                        <div class="flex justify-end gap-2">
+                            <p-button label="Edit" icon="pi pi-pencil" [outlined]="true" size="small"
+                                (onClick)="editQuestion(question)"></p-button>
+                            <p-button label="Delete" icon="pi pi-trash" [outlined]="true" severity="danger" size="small"
+                                (onClick)="deleteQuestion(question.id)"></p-button>
+                        </div>
+                    </ng-template> -->
+                                <!-- </p-panel> -->
+                            </div>
+                        </div>
+                    </ng-template>
+                </p-step-panel>
+                <p-step-panel [value]="3">
+                    <ng-template #content let-activateCallback="activateCallback">
+                        <div class="pt-5">
+                            <div class="flex pt-5 justify-start">
+                                <p-button (onClick)="activateCallback(2)" label="Back" severity="secondary"
+                                    icon="pi pi-arrow-left" />
+                            </div>
+                            <h3>Test Preview</h3>
+
+                            <p-panel header="Test Information" class="mb-4">
+                                <div class="grid">
+                                    <div class="col-12 md:col-6">
+                                        <p><strong>Title:</strong> {{ testDetailsForm.get('title')?.value }}</p>
+                                        <p>
+                                            <strong>Subject:</strong>
+                                            {{ getSubjectLabel(testDetailsForm.get('subject')?.value) }}
+                                        </p>
+                                        <p>
+                                            <strong>Total Marks:</strong> {{ calculateTotalMarks() }} /
+                                            {{ testDetailsForm.get('totalMarks')?.value }}
+                                        </p>
+                                    </div>
+                                    <div class="col-12 md:col-6">
+                                        <p>
+                                            <strong>Duration:</strong>
+                                            {{
+                                            testDetailsForm.get('duration')?.value
+                                            ? testDetailsForm.get('duration')?.value + " minutes"
+                                            : "No time limit"
+                                            }}
+                                        </p>
+                                        <p><strong>Number of Questions:</strong> {{ questionsFormArray.length }}</p>
+                                    </div>
+                                    <div class="col-12">
+                                        <p><strong>Instructions:</strong></p>
+                                        <p class="white-space-pre-wrap">{{ testDetailsForm.get('instructions')?.value }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </p-panel>
+
+                            <p-panel header="Questions Summary" class="mb-4">
+                                <div class="questions-summary">
+                                    <div *ngFor="let question of questionsFormArray.controls; let i = index"
+                                        class="mb-3 pb-3 border-bottom-1 surface-border">
+                                        <div class="flex justify-between items-start">
+                                            <div class="flex-1">
+                                                <p class="font-semibold mb-2">
+                                                    {{ i + 1 }}. {{ question.get('questionText')?.value || "No question
+                                                    text" }}
+                                                </p>
+                                                <p class="text-sm text-600">
+                                                    {{
+                                                    question.get('answerType')?.value
+                                                    }}
+                                                    • {{ question.get('marks')?.value }} mark(s)
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div *ngIf="questionsFormArray.length === 0" class="text-center py-3">
+                                        <p class="text-orange-500">
+                                            <i class="pi pi-exclamation-triangle mr-2"></i>No questions added to
+                                            this test!
+                                        </p>
+                                    </div>
+                                </div>
+                            </p-panel>
+
+                            <div class="mt-4 p-4 bg-yellow-50 border-round"
+                                *ngIf="calculateTotalMarks() !== testDetailsForm.get('totalMarks')?.value">
+                                <i class="pi pi-exclamation-triangle text-yellow-700 mr-2"></i>
+                                <span class="text-yellow-800">Total marks from questions ({{ calculateTotalMarks() }})
+                                    doesn't match
+                                    the specified total marks ({{ testDetailsForm.get('totalMarks')?.value }})</span>
+                            </div>
+                        </div>
+                    </ng-template>
+                </p-step-panel>
+            </p-step-panels>
+        </p-stepper>
+        <!-- Step 1: Basic Test Details -->
+        <div class="step-content">
+            @if (activeStep=== 0) {
+
+
+            }
+
+            <!-- Step 2: Add/Edit Questions -->
+            @else if (activeStep=== 1) {
+
+            }
+
+            <!-- Step 3: Review & Generate -->
+            @else if (activeStep === 2) {
+
+            }
+        </div>
+    </p-card>
+</form>
+
+<!-- Question Dialog -->
+<p-dialog [(visible)]="showQuestionDialog" [modal]="true" [style]="{ width: '50vw' }"
+    [header]="editingQuestion?.id ? 'Edit Question' : 'Add New Question'" [draggable]="false" [resizable]="false">
+    <form [formGroup]="questionForm">
+        <div class="question-form">
+            <div class="field">
+                <label for="questionText" class="block mb-2 font-semibold">Question Text *</label>
+                <textarea pInputTextarea id="questionText" formControlName="questionText" rows="3" class="w-full"
+                    placeholder="Enter your question"></textarea>
+            </div>
+
+            <div class="field">
+                <label class="block mb-2 font-semibold">Answer Type</label>
+                <div class="flex align-items-center gap-4">
+                    <div class="flex align-items-center">
+                        <p-select id="answerType" class="w-full" formControlName="answerType" [options]="answerTypes"
+                            placeholder="Answer Type"></p-select>
+                    </div>
+                </div>
+            </div>
+            <div class="field">
+                <label class="block mb-2 font-semibold">Options *</label>
+                @for (option of questionsFormArray.controls; track $index) {
+                @if (questionForm.get('answerType')?.value === 'Multiple-Correct') {
+                <p-checkbox [binary]="true" formControlName="isCorrect"></p-checkbox>
+                }
+                @else {
+                <p-radioButton formControlName="isCorrect"></p-radioButton>
+                }
+                <span class="font-semibold mr-2">{{ String.fromCharCode(65 + $index) }}.</span>
+                <input pInputText formControlName="optionText" class="flex-1" placeholder="Enter option text" />
+                }
+            </div>
+
+            <div class="field">
+                <label for="marks" class="block mb-2 font-semibold">Marks *</label>
+                <p-inputNumber id="marks" formControlName="marks" [min]="1" [max]="10" class="w-full"></p-inputNumber>
+            </div>
+
+            <div class="field">
+                <label for="explanation" class="block mb-2 font-semibold">Explanation (Optional)</label>
+                <textarea pInputTextarea id="explanation" formControlName="explanation" rows="3" class="w-full"
+                    placeholder="Explain why this is the correct answer"></textarea>
+            </div>
+        </div>
+
+        <ng-template pTemplate="footer">
+            <p-button label="Cancel" [outlined]="true" severity="secondary"
+                (onClick)="closeQuestionDialog()"></p-button>
+            <p-button label="Save Question" icon="pi pi-check" (onClick)="saveQuestion()"
+                [disabled]="!isQuestionValid()"></p-button>
+        </ng-template>
+    </form>
+</p-dialog>
