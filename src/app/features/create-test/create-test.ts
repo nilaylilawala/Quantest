@@ -7,6 +7,8 @@ import Groq from 'groq-sdk';
 import { environment } from '../../../environments/environment';
 import { FormArray, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { EMPTY, merge } from 'rxjs';
+import { GoogleGenAI } from '@google/genai';
+import { parse } from 'path';
 
 interface TestDetails {
   title: string;
@@ -35,6 +37,8 @@ const groq = new Groq({
   dangerouslyAllowBrowser: true,
 });
 
+const ai = new GoogleGenAI({ apiKey: `${environment.GEMINI_API_KEY}` });
+
 @Component({
   selector: 'app-create-test',
   imports: [ImportsModule],
@@ -54,6 +58,7 @@ export class CreateTest implements OnInit {
   singleCorrectAnswer = 0;
   testDetailsForm: FormGroup;
   questionForm: FormGroup;
+  editIndex: number | null = null;
 
   constructor(
     private http: HttpClient,
@@ -85,11 +90,11 @@ export class CreateTest implements OnInit {
 
     this.questionForm = this.fb.group({
       questionText: ['', Validators.required],
-      options: this.fb.array([
-      ]),
+      options: this.fb.array([]),
       marks: [1, [Validators.required, Validators.min(1)]],
       explanation: [''],
       answerType: ['', Validators.required],
+      correctOptionId: [''],
     });
   }
 
@@ -120,20 +125,18 @@ export class CreateTest implements OnInit {
     },
   ];
 
-  get questionsFormArray(): FormArray {
+  questionsFormArray(): FormArray {
     return this.testDetailsForm.get('questions') as FormArray;
   }
 
   getOptionsFormArray(questionIndex: number): FormArray {
-    return this.questionsFormArray.at(questionIndex).get('options') as FormArray;
+    return this.questionsFormArray()
+      .at(questionIndex)
+      .get('options') as FormArray;
   }
 
-
-  createOptionFormGroup(option: any): FormGroup {
-    return this.fb.group({
-      text: [option.text, Validators.required],
-      isCorrect: [option.isCorrect]
-    });
+  get optionsFormArray(): FormArray {
+    return this.questionForm.get('options') as FormArray;
   }
 
   steps: MenuItem[] = [
@@ -151,7 +154,6 @@ export class CreateTest implements OnInit {
     { label: 'Geography', value: 'geography' },
     { label: 'Computer Science', value: 'computer_science' },
   ];
-
 
   answerTypes = [
     { label: 'Single-Correct', value: 'Single-Correct' },
@@ -184,7 +186,10 @@ export class CreateTest implements OnInit {
   }
 
   calculateTotalMarks(): number {
-    return this.questionsFormArray.controls.reduce((sum, q) => sum + (q.get('marks')?.value || 0), 0);
+    return this.questionsFormArray().controls.reduce(
+      (sum, q) => sum + (q.get('marks')?.value || 0),
+      0
+    );
   }
 
   isStepValid(): boolean {
@@ -200,33 +205,57 @@ export class CreateTest implements OnInit {
     }
   }
 
-  addNewQuestion() {
+  createOptionGroup(optionValue: any = {}): FormGroup {
+    return this.fb.group({
+      id: [optionValue.id || this.generateUniqueId()],
+      optionText: [optionValue.optionText || '', Validators.required],
+    });
+  }
+  generateUniqueId(): any {
+    return Math.random().toString(36).substr(2, 9);
+  }
+
+  resetQuestionForm() {
     this.questionForm.reset({
-      options: [
-        { optionText: '', isCorrect: false },
-        { optionText: '', isCorrect: false },
-        { optionText: '', isCorrect: false },
-        { optionText: '', isCorrect: false },
-      ],
       marks: 1,
       answerType: 'Single-Correct',
     });
+    this.optionsFormArray.clear();
+    for (let i = 0; i < 4; i++) {
+      this.optionsFormArray.push(this.createOptionGroup());
+    }
+  }
+
+  addNewQuestion() {
+    this.editIndex = null;
+    this.resetQuestionForm
+    console.log('Adding new question with form', this.questionForm.value);
 
     // this.currentQuestion = this.createNewQuestion();
-    // this.editingQuestion = null;
-    // this.showQuestionDialog = true;
+    this.editingQuestion = null;
+    this.showQuestionDialog = true;
     // this.resetCorrectAnswerStates();
   }
 
   editQuestion(index: number) {
-    this.currentQuestion = this.questionsFormArray.at(index).value;
-    this.editingQuestion = this.currentQuestion;
+    this.editIndex = index;
+    console.log("question array: ", this.questionsFormArray().at(index).value);
+    this.resetQuestionForm();
+    this.questionForm.patchValue(this.questionsFormArray().at(index).value);
+    console.log(
+      'Editing question at index',
+      index,
+      'with form',
+      this.questionForm.value
+    );
+    // this.currentQuestion = this.questionsFormArray.at(index).value;
+    // this.editingQuestion = this.currentQuestion;
     this.showQuestionDialog = true;
-    this.setupCorrectAnswerStates();
+    // this.setupCorrectAnswerStates();
   }
 
   deleteQuestion(index: number) {
-    this.questionsFormArray.removeAt(index);
+    this.questionsFormArray().removeAt(index);
     this.messageService.add({
       severity: 'success',
       summary: 'Deleted',
@@ -234,18 +263,40 @@ export class CreateTest implements OnInit {
     });
   }
 
-  saveQuestion() {
-    if (!this.currentQuestion || !this.isQuestionValid()) return;
+  createQuestionForm(questionFormValue: any): FormGroup {
+    return this.fb.group({
+      questionText: [questionFormValue.questionText, Validators.required],
+      options: this.fb.array(questionFormValue.options.map((opt: any) => this.createOptionGroup(opt))),
+      marks: [
+        questionFormValue.marks || 1,
+        [Validators.required, Validators.min(1)],
+      ],
+      explanation: [questionFormValue.explanation || ''],
+      answerType: [questionFormValue.answerType || '', Validators.required],
+      correctOptionId: [questionFormValue.correctOptionId || ''],
+    });
 
-    if (this.editingQuestion) {
-      const index = this.questionsFormArray.controls.findIndex(
-        (q) => q.value.id === this.editingQuestion!.id
-      );
-      if (index !== -1) {
-        this.questionsFormArray.at(index).patchValue(this.currentQuestion);
+  }
+
+  saveQuestion() {
+    console.log('Saving question:', this.questionForm.value);
+    const controls = this.questionForm.controls;
+    const invalid: string[] = [];
+    for (const name in controls) {
+      if (controls[name].invalid) {
+        console.error(`Control ${name} is invalid`);
       }
+    }
+    if (this.questionForm.invalid) return;
+
+    if (this.editIndex !== null) {
+      this.questionsFormArray()
+        .at(this.editIndex)
+        .patchValue(this.questionForm.value);
     } else {
-      this.questionsFormArray.push(this.currentQuestion);
+      this.questionsFormArray().push(
+        this.createQuestionForm(this.questionForm.value)
+      );
     }
 
     this.closeQuestionDialog();
@@ -262,98 +313,56 @@ export class CreateTest implements OnInit {
     this.editingQuestion = null;
   }
 
-  isQuestionValid(): boolean {
-    if (!this.currentQuestion) return false;
-
-    return !!(
-      this.currentQuestion.question &&
-      this.currentQuestion.options.every((opt) => opt.trim()) &&
-      this.currentQuestion.correctAnswers.length > 0 &&
-      this.currentQuestion.marks > 0
-    );
-  }
-
-  setupCorrectAnswerStates() {
-    if (this.currentQuestion) {
-      this.correctAnswerStates = [false, false, false, false];
-      this.currentQuestion.correctAnswers.forEach((index) => {
-        this.correctAnswerStates[index] = true;
-      });
-      if (
-        !this.currentQuestion.isMultipleCorrect &&
-        this.currentQuestion.correctAnswers.length > 0
-      ) {
-        this.singleCorrectAnswer = this.currentQuestion.correctAnswers[0];
-      }
-    }
-  }
-
-  resetCorrectAnswerStates() {
-    this.correctAnswerStates = [false, false, false, false];
-    this.singleCorrectAnswer = 0;
-  }
-
-  updateCorrectAnswers() {
-    if (this.currentQuestion) {
-      this.currentQuestion.correctAnswers = [];
-      this.correctAnswerStates.forEach((isCorrect, index) => {
-        if (isCorrect) {
-          this.currentQuestion!.correctAnswers.push(index);
-        }
-      });
-    }
-  }
-
-  updateSingleCorrectAnswer() {
-    if (this.currentQuestion) {
-      this.currentQuestion.correctAnswers = [this.singleCorrectAnswer];
-    }
-  }
 
   async generateQuestionsWithAI() {
     this.aiGenerating = true;
 
     try {
       const prompt = this.buildAIPrompt();
+      console.log('AI Prompt:', prompt);
 
-      const response = await groq.chat.completions.create({
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a helpful assistant that generates test questions. Return questions in JSON format.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        model: 'gemma2-9b-it',
-        temperature: 0.7,
-        max_tokens: 2000,
-      });
+      await ai.models
+        .generateContent({
+          model: 'gemini-2.5-flash',
+          contents: prompt,
+        })
+        .then((response: any) => {
+          console.log('AI response received:', response.text);
+          const generatedQuestions = this.parseAIResponse(response.text);
 
-      console.log(response.choices[0].message.content);
+          generatedQuestions.forEach((q: any) => {
+            this.questionsFormArray().push(this.createQuestionForm(q));
+            // q.options.forEach((opt: any) =>
+            //   this.optionsFormArray.push(this.createOptionGroup(opt))
+            // );
 
-      const generatedQuestions = this.parseAIResponse(
-        response.choices[0].message.content!
-      );
+          });
 
+          console.log('questionsFormArray', this.questionsFormArray().value);
 
-      generatedQuestions.forEach((q: any) => {
-        const optionsArray = this.fb.array(
-          q.options.map((opt: any) => this.fb.group(opt))
-        );
-        q.options = optionsArray;
-        this.questionsFormArray.push(this.fb.group(q)); 
-        console.log("questionFormArray", this.questionsFormArray.value);
-      });
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: `Generated ${generatedQuestions.length} questions successfully`,
+          });
+        });
 
-      this.messageService.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: `Generated ${generatedQuestions.length} questions successfully`,
-      });
+      // const response = await groq.chat.completions.create({
+      //   messages: [
+      //     {
+      //       role: 'system',
+      //       content:
+      //         'You are a helpful assistant that generates test questions. Return questions in JSON format.',
+      //     },
+      //     {
+      //       role: 'user',
+      //       content: prompt,
+      //     },
+      //   ],
+      //   model: 'gemma2-9b-it',
+      //   temperature: 0.7,
+      //   max_tokens: 2000,
+      // });
     } catch (error) {
       console.error('AI Generation Error:', error);
       this.messageService.add({
@@ -368,7 +377,7 @@ export class CreateTest implements OnInit {
   }
 
   buildAIPrompt(): string {
-    return `Generate ${
+    return `Generate MCQ Test with ${
       this.testDetailsForm.get('easyQuestions')?.value
     }  Easy Questions, ${
       this.testDetailsForm.get('mediumQuestions')?.value
@@ -382,19 +391,20 @@ export class CreateTest implements OnInit {
       [
         {
           "questionText": "Question text here",
-          "options": [{"optionText": "Option A", "isCorrect": true}, {"optionText": "Option B", "isCorrect": false}, {"optionText": "Option C", "isCorrect": false}, {"optionText": "Option D", "isCorrect": false}],
+          "options": [{"id": "1abc", "optionText": "Option A"}, {"id": "2def", "optionText": "Option B"}],
           "marks": 1,
           "explanation": "Brief explanation of the correct answer",
           "answerType": "Single-Correct" or "Multiple-Correct",
+          "correctOptionId": "1abc"
         }
       ]
 
       Make sure to:
       1. Create questions appropriate for the subject and difficulty level
       2. Include a mix of question types
-      3. Ensure all options are plausible
-      4. Provide clear explanations
-      5. Use correctAnswers as an array of indices (0-3) for the correct options`;
+      3. Ensure all options are plausible and randomize the correct answer position
+      4. Provide clear explanation.
+      5. Only return the Array of JSON objects without any additional text. (not even triple backticks and 'json' tag)`;
   }
 
   parseAIResponse(content: string) {
@@ -404,13 +414,8 @@ export class CreateTest implements OnInit {
       if (!jsonMatch) return [];
 
       const parsed = JSON.parse(jsonMatch[0]);
-      return parsed.map((q: any) => ({
-        questionText: q.questionText,
-        options: q.options,
-        marks: q.marks || 1,
-        explanation: q.explanation || '',
-        answerType: q.answerType || '',
-      }));
+      console.log('Parsed AI response:', parsed);
+      return parsed;
     } catch (error) {
       console.error('Failed to parse AI response:', error);
       return [];
@@ -441,7 +446,7 @@ export class CreateTest implements OnInit {
     // Prepare test data
     const testData = {
       ...this.testDetailsForm,
-      questions: this.questionsFormArray.value,
+      questions: this.questionsFormArray().value,
       actualTotalMarks: this.calculateTotalMarks(),
       createdAt: new Date().toISOString(),
     };

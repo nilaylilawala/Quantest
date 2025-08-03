@@ -95,7 +95,7 @@
                         </div>
                         <div class="pt-5">
                             <div class="card flex justify-between items-center mb-4">
-                                <h3 class="m-0">Total Questions: {{ questionsFormArray.length }}</h3>
+                                <h3 class="m-0">Total Questions: {{ questionsFormArray().length }}</h3>
                                 <div class="flex gap-2">
                                     <p-button label="Generate with AI" icon="pi pi-sparkles"
                                         (onClick)="generateQuestionsWithAI()" [loading]="aiGenerating" severity="help"
@@ -105,7 +105,7 @@
                                 </div>
                             </div>
 
-                            <div *ngIf="questionsFormArray.length === 0" class="text-center py-5">
+                            <div *ngIf="questionsFormArray().length === 0" class="text-center py-5">
                                 <i class="pi pi-inbox text-4xl text-300"></i>
                                 <p class="text-lg text-600 mt-3">No questions added yet</p>
                                 <p class="text-sm text-500">
@@ -114,8 +114,8 @@
                             </div>
 
                             <div class="questions-list" formArrayName="questions">
-                                @for (question of questionsFormArray.controls; track $index; let qIndex = $index;) {
-                                <div [formGroupName]="qIndex">
+                                @for (question of questionsFormArray().controls; track $index; let qIndex = $index;) {
+                                <p-panel [formGroupName]="qIndex" class="mb-3">
                                     <ng-template pTemplate="header">
                                         <div class="flex justify-between items-center w-full">
                                             <div class="flex gap-2 items-center">
@@ -135,28 +135,33 @@
                                     </ng-template>
 
                                     <div class="question-content">
-                                        <p class="mb-3">{{ question.get('questionText')?.value || "No question text" }}
+                                        <p class="mb-3">{{ question.get('questionText')?.value || "No question text"
+                                            }}
                                         </p>
 
                                         <div class="options-grid" formArrayName="options">
-                                            @for (option of getOptionsFormArray(qIndex).controls; track $index) {
-                                            <div class="option-item flex align-items-center gap-2 mb-2"
-                                                [class.correct-option]="option.get('isCorrect')?.value">
-                                                <i class="pi" [class.pi-check-circle]="option.get('isCorrect')?.value"
-                                                    [class.pi-circle]="!option.get('isCorrect')?.value"
-                                                    [class.text-green-500]="option.get('isCorrect')?.value"></i>
-                                                <span>{{ String.fromCharCode(65 + $index) }}.
-                                                    {{ option.get('optionText')?.value || "Empty option" }}</span>
-                                            </div>
-
-                                            <div *ngIf="question.get('explanation')?.value"
-                                                class="mt-3 p-3 bg-blue-50 border-round">
-                                                <strong>Explanation:</strong> {{ question.get('explanation')?.value }}
+                                            @for (option of getOptionsFormArray(qIndex).controls; track $index; let
+                                            optIndex = $index;) {
+                                            <div [formGroupName]="optIndex">
+                                                <div class="option-item flex align-items-center gap-2 mb-2"
+                                                    [class.correct-option]="question.get('correctOptionId')?.value === option.get('id')?.value">
+                                                    <i class="pi"
+                                                      
+                                                        [class.text-green-500]="question.get('correctOptionId')?.value === option.get('id')?.value"></i>
+                                                    <span>{{ String.fromCharCode(65 + $index) }}.
+                                                        {{ option.get('optionText')?.value || "Empty option"
+                                                        }}</span>
+                                                </div>
                                             </div>
                                             }
+                                            <div *ngIf="question.get('explanation')?.value"
+                                                class="mt-3 p-3 bg-blue-50 border-round">
+                                                <strong>Explanation:</strong> {{ question.get('explanation')?.value
+                                                }}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                </p-panel>
                                 }
                                 <!-- <p-panel *ngFor="let question of questions; let i = index" class="mb-3"> -->
 
@@ -217,13 +222,12 @@
 
                             <p-panel header="Questions Summary" class="mb-4">
                                 <div class="questions-summary">
-                                    <div *ngFor="let question of questionsFormArray.controls; let i = index"
+                                    <div *ngFor="let question of questionsFormArray().controls; let i = index"
                                         class="mb-3 pb-3 border-bottom-1 surface-border">
                                         <div class="flex justify-between items-start">
                                             <div class="flex-1">
                                                 <p class="font-semibold mb-2">
-                                                    {{ i + 1 }}. {{ question.get('questionText')?.value || "No question
-                                                    text" }}
+                                                    {{ i + 1 }}. {{ question.get('questionText')?.value || "No question text" }}
                                                 </p>
                                                 <p class="text-sm text-600">
                                                     {{
@@ -248,85 +252,76 @@
                                 *ngIf="calculateTotalMarks() !== testDetailsForm.get('totalMarks')?.value">
                                 <i class="pi pi-exclamation-triangle text-yellow-700 mr-2"></i>
                                 <span class="text-yellow-800">Total marks from questions ({{ calculateTotalMarks() }})
-                                    doesn't match
-                                    the specified total marks ({{ testDetailsForm.get('totalMarks')?.value }})</span>
+                                    does not match the specified total marks ({{
+                                    testDetailsForm.get('totalMarks')?.value }})</span>
                             </div>
                         </div>
                     </ng-template>
                 </p-step-panel>
             </p-step-panels>
         </p-stepper>
-        <!-- Step 1: Basic Test Details -->
-        <div class="step-content">
-            @if (activeStep=== 0) {
-
-
-            }
-
-            <!-- Step 2: Add/Edit Questions -->
-            @else if (activeStep=== 1) {
-
-            }
-
-            <!-- Step 3: Review & Generate -->
-            @else if (activeStep === 2) {
-
-            }
-        </div>
     </p-card>
 </form>
 
 <!-- Question Dialog -->
+@if (showQuestionDialog) {
 <p-dialog [(visible)]="showQuestionDialog" [modal]="true" [style]="{ width: '50vw' }"
     [header]="editingQuestion?.id ? 'Edit Question' : 'Add New Question'" [draggable]="false" [resizable]="false">
     <form [formGroup]="questionForm">
-        <div class="question-form">
-            <div class="field">
-                <label for="questionText" class="block mb-2 font-semibold">Question Text *</label>
-                <textarea pInputTextarea id="questionText" formControlName="questionText" rows="3" class="w-full"
-                    placeholder="Enter your question"></textarea>
-            </div>
+            <div class="question-form">
+                <div class="field">
+                    <label for="questionText" class="block mb-2 font-semibold">Question Text *</label>
+                    <textarea pInputTextarea id="questionText" formControlName="questionText" rows="3" class="w-full"
+                        placeholder="Enter your question"></textarea>
+                </div>
 
-            <div class="field">
-                <label class="block mb-2 font-semibold">Answer Type</label>
-                <div class="flex align-items-center gap-4">
-                    <div class="flex align-items-center">
-                        <p-select id="answerType" class="w-full" formControlName="answerType" [options]="answerTypes"
-                            placeholder="Answer Type"></p-select>
+                <div class="field">
+                    <label class="block mb-2 font-semibold">Answer Type</label>
+                    <div class="flex align-items-center gap-4">
+                        <div class="flex align-items-center">
+                            <p-select id="answerType" class="w-full" formControlName="answerType"
+                                [options]="answerTypes" placeholder="Answer Type"></p-select>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="field">
-                <label class="block mb-2 font-semibold">Options *</label>
-                @for (option of questionsFormArray.controls; track $index) {
-                @if (questionForm.get('answerType')?.value === 'Multiple-Correct') {
-                <p-checkbox [binary]="true" formControlName="isCorrect"></p-checkbox>
-                }
-                @else {
-                <p-radioButton formControlName="isCorrect"></p-radioButton>
-                }
-                <span class="font-semibold mr-2">{{ String.fromCharCode(65 + $index) }}.</span>
-                <input pInputText formControlName="optionText" class="flex-1" placeholder="Enter option text" />
-                }
+                <div class="field">
+                    <label class="block mb-2 font-semibold">Options *</label>
+                    @for (option of optionsFormArray.controls; track $index; let optIndex = $index;) {
+                    <div class="flex items-center gap-1 mb-4" >
+                    @if (questionForm.get('answerType')?.value === 'Multiple-Correct') {
+                    <p-checkbox [binary]="true" formControlName="correctOptionId"></p-checkbox>
+                    }
+                    @else {
+                    <p-radiobutton formControlName="correctOptionId" name="isCorrect" [inputId]="'opt' + optIndex" [value]="option.get('id')?.value"></p-radiobutton>
+                    }
+                    <div class="w-full" formArrayName="options" >
+                        <div [formGroupName]="optIndex">
+                            <input pInputText formControlName="optionText" class="w-full flex-1" placeholder="Enter option text" />
+                        </div>
+                    </div>
+                    </div>
+                    }
+                </div>
+
+                <div class="field">
+                    <label for="marks" class="block mb-2 font-semibold">Marks *</label>
+                    <p-inputNumber id="marks" formControlName="marks" [min]="1" [max]="10"
+                        class="w-full"></p-inputNumber>
+                </div>
+
+                <div class="field">
+                    <label for="explanation" class="block mb-2 font-semibold">Explanation (Optional)</label>
+                    <textarea pInputTextarea id="explanation" formControlName="explanation" rows="3" class="w-full"
+                        placeholder="Explain why this is the correct answer"></textarea>
+                </div>
             </div>
 
-            <div class="field">
-                <label for="marks" class="block mb-2 font-semibold">Marks *</label>
-                <p-inputNumber id="marks" formControlName="marks" [min]="1" [max]="10" class="w-full"></p-inputNumber>
-            </div>
-
-            <div class="field">
-                <label for="explanation" class="block mb-2 font-semibold">Explanation (Optional)</label>
-                <textarea pInputTextarea id="explanation" formControlName="explanation" rows="3" class="w-full"
-                    placeholder="Explain why this is the correct answer"></textarea>
-            </div>
-        </div>
-
-        <ng-template pTemplate="footer">
+        </form>
+        <ng-template #footer>
             <p-button label="Cancel" [outlined]="true" severity="secondary"
                 (onClick)="closeQuestionDialog()"></p-button>
             <p-button label="Save Question" icon="pi pi-check" (onClick)="saveQuestion()"
-                [disabled]="!isQuestionValid()"></p-button>
+               ></p-button>
         </ng-template>
-    </form>
 </p-dialog>
+}
